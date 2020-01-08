@@ -53,12 +53,8 @@ const HashButton = () => {
               .split(',')
               .map(x => x.replace(' ', ''))
               .map(x => {
-                try {
-                  return bigInt(x)
-                } catch {
-                  const b = new _bigInt(x, 16)
-                  return bigInt(b.toString())
-                }
+                const b = new _bigInt(x, 16)
+                return bigInt(b.toString())
               })
             )}
             placeholder="0,1,2,3"
@@ -155,14 +151,9 @@ const SideBar = ({ selectedLeaf, setMerkleTree, merkleTree }) => {
               }
 
               try {
-                bigInt(e.target.value)
+                new _bigInt(e.target.value, 16)
                 setLeafValue(e.target.value)
-              } catch {
-                try {
-                  new _bigInt(e.target.value, 16)
-                  setLeafValue(e.target.value)
-                } catch {}
-              }
+              } catch { }
             }}
             placeholder="0"
             value={leafValue}
@@ -174,12 +165,7 @@ const SideBar = ({ selectedLeaf, setMerkleTree, merkleTree }) => {
         <Col sm="12">
           <Button
             onClick={() => {
-              let b
-              try {
-                b = bigInt(leafValue)
-              } catch {
-                b = new _bigInt(leafValue, 16)
-              }
+              const b = new _bigInt(leafValue, 16)
 
               if (action === ActionTypes.Insert) {
                 merkleTree.insert(b)
@@ -390,7 +376,7 @@ const InfoSection = ({ selectedLeaf }) => {
                 <Label><strong>Value</strong>:</Label>&nbsp;&nbsp;
                 <span style={{ wordWrap: 'break-word' }}>
                   {
-                      selectedLeaf.value.toString()
+                    '0x' + selectedLeaf.value.toString()
                   }
                 </span>
               </div>
