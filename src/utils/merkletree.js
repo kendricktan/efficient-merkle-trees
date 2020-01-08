@@ -129,7 +129,7 @@ class MerkleTree {
     leaf,
     path
   ) {
-    if (!this.leafExists(leafIndex, leaf, path)) {
+    if (!this.leafExists(leafIndex, this.leaves[leafIndex], path)) {
       throw new Error('MerkleTree: tree root / current level has mismatch')
     }
 
@@ -172,20 +172,20 @@ class MerkleTree {
 
     let curIdx = leafIndex
     const path = []
-    const pathIndex = []
+    const leafIndexes = []
 
     for (let i = 0; i < this.depth; i++) {
       if (curIdx % 2 === 0) {
         path.push(this.filledPaths[i][curIdx + 1])
-        pathIndex.push(0)
+        leafIndexes.push([i, curIdx + 1])
       } else {
         path.push(this.filledPaths[i][curIdx - 1])
-        pathIndex.push(1)
+        leafIndexes.push([i, curIdx - 1])
       }
       curIdx = parseInt(curIdx / 2)
     }
 
-    return [path, pathIndex]
+    return [path, leafIndexes]
   }
 }
 

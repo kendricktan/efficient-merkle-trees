@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from 'react';
 
 import { 
-  Container,
   Row,
   Col,
   Label,
@@ -13,8 +12,17 @@ import {
   DropdownItem
 } from 'reactstrap';
 
-import { Stage, Layer, Text, Group, Rect } from 'react-konva';
+import {
+  Stage,
+  Layer,
+  Text,
+  Group,
+  Rect,
+  Line
+} from 'react-konva';
 
+import _bigInt from 'big-integer'
+import { mimc7 } from 'circomlib'
 import { bigInt } from 'snarkjs'
 import { createMerkleTree } from './utils/merkletree.js'
 
@@ -27,24 +35,78 @@ const nodeHeight = 30
 
 const ActionTypes = {
   Insert: "Insert",
-  Update: "Update",
-  Verify: "Verify"
+  Update: "Update"
 }
 
-const AppSettings = () => {
+const HashButton = () => {
+  const [hashInput, setHashInput] = useState('')
+  const [hashOutput, setHashOutput] = useState(0)
+
+  return (
+    <div>
+      <Row>
+        <Col sm="12">
+          <Label>Hash Input</Label>
+          <Input
+            onChange={(e) => setHashInput(
+              e.target.value
+              .split(',')
+              .map(x => x.replace(' ', ''))
+              .map(x => {
+                try {
+                  return bigInt(x)
+                } catch {
+                  const b = new _bigInt(x, 16)
+                  return bigInt(b.toString())
+                }
+              })
+            )}
+            placeholder="0,1,2,3"
+          />
+        </Col>
+      </Row>
+      <br />
+      <Row>
+        <Col sm="12">
+          <Button
+            onClick={() => {
+              setHashOutput(mimc7.multiHash(hashInput).toString(16))
+            }}
+            color="primary"
+            block
+          >
+            Hash
+          </Button>
+        </Col>
+      </Row>
+      <br />
+      <Row>
+        <Col sm="12">
+          <Label>Hash Output</Label><br />
+          <span style={{ wordWrap: 'break-word' }}>{hashOutput}</span>
+        </Col>
+      </Row>
+    </div>
+  )
+}
+
+const SideBar = ({ selectedLeaf, setMerkleTree, merkleTree }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [action, setAction] = useState(ActionTypes.Insert)
 
+  const [leafIndex, setLeafIndex] = useState('')
+  const [leafValue, setLeafValue] = useState('')
+
   return (
-    <div style={{ paddingTop: '30px' }}>
-      <img alt="logo" src={bonsai} height="48" style={{ float: 'left', paddingRight: '30px' }}/>
-      <h1>Efficient Merkle Tree Visualization</h1>
+    <div>
+      <img alt="logo" src={bonsai} height="32" style={{ float: 'left', paddingRight: '20px' }}/>
+      <h3>Merkle Tree Visualization</h3>
       <hr />
       <Row>
         <Col sm="4">
           <Label>Action</Label>
           <Dropdown isOpen={dropdownOpen} toggle={() => setDropdownOpen(!dropdownOpen)}>
-            <DropdownToggle block caret>
+            <DropdownToggle color="primary" block caret>
               {action}
             </DropdownToggle>
             <DropdownMenu>
@@ -67,100 +129,223 @@ const AppSettings = () => {
         </Col>
         <Col sm="4">
           <Label>Leaf Index</Label>
-          <Input disabled={action === ActionTypes.Insert} placeholder="0" />
+          <Input
+            onChange={(e) => {
+              if (e.target.value === '') {
+                setLeafIndex('')
+                return
+              }
+
+              try {
+                bigInt(e.target.value)
+                setLeafIndex(e.target.value)
+              } catch {}
+            }}
+            value={leafIndex}
+            disabled={action === ActionTypes.Insert} placeholder="0"
+          />
         </Col>
         <Col sm="4">
           <Label>Leaf Value</Label>
-          <Input placeholder="0" />
+          <Input 
+            onChange={(e) => {
+              if (e.target.value === '') {
+                setLeafValue('')
+                return
+              }
+
+              try {
+                bigInt(e.target.value)
+                setLeafValue(e.target.value)
+              } catch {
+                try {
+                  new _bigInt(e.target.value, 16)
+                  setLeafValue(e.target.value)
+                } catch {}
+              }
+            }}
+            placeholder="0"
+            value={leafValue}
+          />
         </Col>
       </Row>
       <br />
       <Row>
         <Col sm="12">
-          <Button block>
+          <Button
+            onClick={() => {
+              let b
+              try {
+                b = bigInt(leafValue)
+              } catch {
+                b = new _bigInt(leafValue, 16)
+              }
+
+              if (action === ActionTypes.Insert) {
+                merkleTree.insert(b)
+                setMerkleTree(merkleTree)
+              } else if (action === ActionTypes.Update) {
+                const idx = parseInt(leafIndex)
+                const paths = merkleTree.getPathUpdate(idx)
+                merkleTree.update(idx, b, paths[0] )
+                setMerkleTree(merkleTree)
+              } else if (action === ActionTypes.Verify) {
+                // merkleTree.insert(b)
+                // setMerkleTree(merkleTree)
+              }
+            }}
+            color="primary"
+            block
+          >
             Go
           </Button>
         </Col>
       </Row>
-
+      <hr />
+      <HashButton />
       <hr />
     </div>
   )
 }
 
-const TreeNode = ({text, x, y}) => {
-  let t
+const LeafNode = ({ isHighlightedPath, isLatestIndex, setSelectedLeaf, leafData, text, x, y}) => {
+  const [selected, setSelected] = useState(false)
 
-  if (text === '0') {
-    t = text
-  } else {
-    t = text.slice(0, 8) + '..'
-  }
+  const t = text.length <= 8 ? text : text.slice(0, 8) + '..'
+
+  const color = isHighlightedPath ? '#FF9F1C' : (isLatestIndex ? '#2EC4B6' : '#011627')
 
   return (
     <Group>
       <Rect
+        onMouseEnter={() => {
+          setSelected(true) 
+          setSelectedLeaf(leafData)
+        }}
+        onMouseLeave={() => {
+          setSelected(false) 
+          // setSelectedLeaf({})
+        }}
         x={x}
         y={y}
         width={nodeWidth}
         height={nodeHeight}
-        stroke={'black'}
-        onClick={(x) => console.log(x)}
+        stroke={color}
+        strokeWidth={selected ? 3 : 2}
       />
-      <Text text={t} fontSize={15} x={t === '0' ? x + nodeWidth/2 - 5 : x + 10} y={y + 9}/>
+      <Text
+        onMouseEnter={() => {
+          setSelected(true) 
+          setSelectedLeaf(leafData)
+        }}
+        onMouseLeave={() => {
+          setSelected(false) 
+          // setSelectedLeaf({})
+        }}
+        text={t}
+        fill={color}
+        fontSize={15}
+        fontStyle={selected ? 'bold' : 'normal'}
+        x={t.includes('..') ? x + 10 : x + nodeWidth/2 - (t.length * 3)} y={y + 9}
+      />
     </Group>
   );
 }
 
-const DynamicSizedCanvas = () => {
+const DynamicSizedCanvas = ({ merkleTree, selectedLeaf, setSelectedLeaf }) => {
   const [width, setWidth] = useState(0)
 
   const minWidth = width > 900 ? width : 900
-  const height = 500
+  const height = 260
 
-  const m = createMerkleTree(4, bigInt(0))
+  // Convert selectedLeaf.pathIndexes to easily
+  // check if cur index is selected
+  let pathIndexes = selectedLeaf.pathIndexes || []
+  let pathIndexMap = {}
+  for (let k = 0; k <= m.depth; k++) {
+    pathIndexMap[k] = {}
+  }
+  pathIndexes.forEach(e => {
+    pathIndexMap[e[0]][e[1]] = true
+  })
 
   const renderMerkleTree = () => {
     let nodes = []
+    let nodePosition = {}
 
-    for (let i = 0; i < m.depth; i++) {
+    for (let i = 0; i <= merkleTree.depth; i++) {
       const itemsInLevel = Math.pow(2, i)
 
-      if (i === 0) {
-        // Root
-        nodes.push(<TreeNode text={m.root.toString(16)} x={width/2 - nodeWidth/2} y={40} />)
-      } else if (i < m.depth - 1) {
-        // Subtrees
-        for (let j = 0; j < itemsInLevel; j++) {
-          let t
+      nodePosition[i] = {}
 
+      for (let j = 0; j < itemsInLevel; j++) {
+        let t
+
+        if (i === merkleTree.depth) {
           try {
-            t = m.filledPaths[i][j].toString(16)
+            t = merkleTree.leaves[j].toString(16)
           } catch {
-            t = m.filledSubtrees[i].toString(16)
+            t = merkleTree.zeroValue.toString(16)
           }
-
-          const paddingX = parseInt(width/(1 + itemsInLevel))
-
-          nodes.push(
-            <TreeNode text={t} x={((j+1)*paddingX) - (nodeWidth/2)} y={40+(i*60)} />
-          )
+        } else if (i === 0) {
+          t = merkleTree.root.toString(16)
+        } else {
+          try {
+            t = merkleTree.filledPaths[merkleTree.depth - i][j].toString(16)
+          } catch {
+            t = merkleTree.filledSubtrees[merkleTree.depth - i].toString(16)
+          }
         }
-      } else {
-        // Leaves
-        for (let j = 0; j < itemsInLevel; j++) {
-          let t
 
+        const paddingX = parseInt(width/(1 + itemsInLevel))
+        const x = ((j+1)*paddingX) - (nodeWidth/2)
+        const y = 40+(i*60)
+
+        nodePosition[i][j] = [x, y]
+
+        let leafData = {
+          value: t.toString()
+        }
+
+        if (i === merkleTree.depth) {
           try {
-            t = m.leaves[j].toString(16)
-          } catch {
-            t = m.zeroValue.toString(16)
-          }
+            const paths = merkleTree.getPathUpdate(j)
 
-          const paddingX = parseInt(width/(1 + itemsInLevel))
+            leafData.path = paths[0]
+            leafData.pathIndexes = paths[1]
+          } catch { }
+        }
 
+        const isHighlightedPath = pathIndexMap[merkleTree.depth - i][j] === true
+
+        nodes.push(
+          <LeafNode
+            key={`${i}-${j}`}
+            isLatestIndex={merkleTree.nextIndex - 1 === j && i === merkleTree.depth}
+            isHighlightedPath={isHighlightedPath}
+            setSelectedLeaf={setSelectedLeaf}
+            leafData={leafData}
+            text={t}
+            x={x}
+            y={y}
+          />
+        )
+
+        // Only draw lines if you're not in root
+        if (i > 0) {
+          const rootPosition = nodePosition[i-1][parseInt(j/2)]
           nodes.push(
-            <TreeNode text={t} x={((j+1)*paddingX) - (nodeWidth/2)} y={40+(i*60)} />
+            <Line
+              key={`line-${i}-${j}`}
+              points={
+                [
+                  x+(nodeWidth/2), y,
+                  rootPosition[0]+(nodeWidth/2), rootPosition[1]+nodeHeight
+                ]
+              }
+              strokeWidth={2}
+              stroke={'#011627'}
+            />
           )
         }
       }
@@ -170,13 +355,20 @@ const DynamicSizedCanvas = () => {
   }
 
   return (
-    <div style={{ minWidth: minWidth, width: '100%', height: '100%'}} ref={useCallback((node) => { 
+    <div style={{ minWidth: minWidth, width: '100%' }} ref={useCallback((node) => { 
       if (node !== null) {
         setWidth(node.getBoundingClientRect().width);
       }
     }, [])}>
       <Stage width={width} height={height}>
         <Layer>
+        <Text
+          text={'Latest Leaf Index: ' + (merkleTree.nextIndex - 1).toString()}
+          fill={'#2EC4B6'}
+          fontSize={15}
+          fontStyle={'bold'}
+          x={5} y={5}
+        />
         {
           renderMerkleTree()
         }
@@ -186,19 +378,71 @@ const DynamicSizedCanvas = () => {
   )
 }
 
+const InfoSection = ({ selectedLeaf }) => {
+  return (
+    <Row>
+      <Col sm="12">
+        <div>
+          {
+            selectedLeaf.value === undefined ? null :
+            (
+              <div>
+                <Label><strong>Value</strong>:</Label>&nbsp;&nbsp;
+                <span style={{ wordWrap: 'break-word' }}>
+                  {
+                      selectedLeaf.value.toString()
+                  }
+                </span>
+              </div>
+            )
+          }
+          {
+            selectedLeaf.path === undefined ? null :
+            (
+              <div>
+                <Label><strong>Path</strong>:</Label>&nbsp;&nbsp;
+                <span style={{ color: '#FF9F1C', wordWrap: 'break-word' }}>
+                  {
+                      "[" + selectedLeaf.path.map(x => x.toString(16)).join(', ') + "]"
+                  }
+                </span>
+              </div>
+            )
+          }
+        </div>
+      </Col>
+    </Row>
+  )
+}
+
+const m = createMerkleTree(3, bigInt(0))
+m.insert(bigInt(32767))
 
 const App = () => {
+  const [selectedLeaf, setSelectedLeaf] = useState({})
+  const [merkleTree, setMerkleTree] = useState(m)
+
   return (
-    <Container>
-      <Row>
-        <Col sm="12" md={{ size: 8, offset: 2 }}>
-          <AppSettings />
+      <Row style={{ padding: '30px', height: '100vh' }}>
+        <Col sm="4">
+          <SideBar
+            merkleTree={Object.assign(Object.create(Object.getPrototypeOf(merkleTree)), merkleTree)}
+            setMerkleTree={setMerkleTree}
+            selectedLeaf={selectedLeaf}
+          />
         </Col>
-        <Col sm="12" md="12">
-          <DynamicSizedCanvas />
+        <Col sm="8">
+          <DynamicSizedCanvas
+            merkleTree={Object.assign(Object.create(Object.getPrototypeOf(merkleTree)), merkleTree)}
+            setSelectedLeaf={setSelectedLeaf}
+            selectedLeaf={selectedLeaf}
+          />
+          <hr />
+          <InfoSection
+            selectedLeaf={selectedLeaf}
+          />
         </Col>
       </Row>
-    </Container>
   );
 }
 
