@@ -35,7 +35,8 @@ const nodeHeight = 30
 
 const ActionTypes = {
   Insert: "Insert",
-  Update: "Update"
+  Update: "Update",
+  //  Verify: "Verify"
 }
 
 const HashButton = () => {
@@ -195,6 +196,7 @@ const SideBar = ({ selectedLeaf, setMerkleTree, merkleTree }) => {
 }
 
 const LeafNode = ({ isHighlightedPath, isLatestIndex, setSelectedLeaf, leafData, text, x, y}) => {
+  const [clicked, setClicked] = useState(false)
   const [selected, setSelected] = useState(false)
 
   const t = text.length <= 8 ? text : text.slice(0, 8) + '..'
@@ -209,8 +211,12 @@ const LeafNode = ({ isHighlightedPath, isLatestIndex, setSelectedLeaf, leafData,
           setSelectedLeaf(leafData)
         }}
         onMouseLeave={() => {
-          setSelected(false) 
-          // setSelectedLeaf({})
+          if (!clicked) {
+            setSelected(false) 
+          }
+        }}
+        onClick={() => {
+          setClicked(!clicked)
         }}
         x={x}
         y={y}
@@ -225,8 +231,12 @@ const LeafNode = ({ isHighlightedPath, isLatestIndex, setSelectedLeaf, leafData,
           setSelectedLeaf(leafData)
         }}
         onMouseLeave={() => {
-          setSelected(false) 
-          // setSelectedLeaf({})
+          if (!clicked) {
+            setSelected(false) 
+          }
+        }}
+        onClick={() => {
+          setClicked(!clicked)
         }}
         text={t}
         fill={color}
@@ -403,6 +413,11 @@ const InfoSection = ({ selectedLeaf }) => {
 
 const m = createMerkleTree(3, bigInt(0))
 m.insert(bigInt(32767))
+// m.insert(bigInt(1))
+// m.insert(bigInt(2))
+// m.insert(bigInt(3))
+// m.insert(bigInt(4))
+// m.insert(bigInt(5))
 
 const App = () => {
   const [selectedLeaf, setSelectedLeaf] = useState({})

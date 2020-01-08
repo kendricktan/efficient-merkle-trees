@@ -56,6 +56,10 @@ class MerkleTree {
 
   /* Inserts a new value into the merkle tree */
   insert (leaf) {
+    if (this.nextIndex + 1 > this.leafNumber) {
+      throw new Error('Merkle Tree at max capacity')
+    }
+
     let curIdx = this.nextIndex
     this.nextIndex += 1
 
@@ -194,4 +198,6 @@ export const createMerkleTree = (
   treeDepth,
   zeroValue
 ) => new MerkleTree(treeDepth, zeroValue)
+
+export const hash = mimc7.muliHash
 
