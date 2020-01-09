@@ -31,6 +31,16 @@ class MerkleTree {
       this.filledPaths[i] = {}
     }
 
+    for (let i = 1; i < depth; i++) {
+      for (let j = 0; j < Math.pow(2, depth - i); j++) {
+        if (i === 1) {
+          this.filledPaths[i][j] = this.hashLeftRight(this.zeroValue, this.zeroValue)
+        } else {
+          this.filledPaths[i][j] = this.hashLeftRight(this.filledSubtrees[i - 1], this.filledSubtrees[i - 1])
+        }
+      }
+    }
+
     this.root = this.hashLeftRight(
       this.zeros[this.depth - 1],
       this.zeros[this.depth - 1]
