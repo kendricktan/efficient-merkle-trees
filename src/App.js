@@ -191,6 +191,12 @@ const SideBar = ({ selectedLeaf, setMerkleTree, merkleTree }) => {
       <hr />
       <HashButton />
       <hr />
+      <Row>
+        <Col sm="12">
+          Made by <a href="https://kndrck.co">Kendrick Tan</a> <br/>
+          <a href="https://github.com/kendricktan/efficient-merkle-trees">GitHub</a>
+        </Col>
+      </Row>
     </div>
   )
 }
